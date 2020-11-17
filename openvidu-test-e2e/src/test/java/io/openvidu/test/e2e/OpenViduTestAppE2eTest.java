@@ -48,6 +48,7 @@ import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -100,6 +101,54 @@ public class OpenViduTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 		setupBrowser("chrome");
 
 		log.info("One2One Chrome [Video + Audio]");
+
+		user.getDriver().findElement(By.id("auto-join-checkbox")).click();
+		user.getDriver().findElement(By.id("one2one-btn")).click();
+
+		user.getEventManager().waitUntilEventReaches("connectionCreated", 4);
+		user.getEventManager().waitUntilEventReaches("accessAllowed", 2);
+		user.getEventManager().waitUntilEventReaches("streamCreated", 4);
+		user.getEventManager().waitUntilEventReaches("streamPlaying", 4);
+
+		final int numberOfVideos = user.getDriver().findElements(By.tagName("video")).size();
+		Assert.assertEquals("Expected 4 videos but found " + numberOfVideos, 4, numberOfVideos);
+		Assert.assertTrue("Videos were expected to have audio and video tracks", user.getEventManager()
+				.assertMediaTracks(user.getDriver().findElements(By.tagName("video")), true, true));
+
+		gracefullyLeaveParticipants(2);
+	}
+
+	@Test
+	@DisplayName("One2One Firefox [Video + Audio]")
+	void oneToOneVideoAudioSessionFirefox() throws Exception {
+
+		setupBrowser("firefox");
+
+		log.info("One2One Firefox [Video + Audio]");
+
+		user.getDriver().findElement(By.id("auto-join-checkbox")).click();
+		user.getDriver().findElement(By.id("one2one-btn")).click();
+
+		user.getEventManager().waitUntilEventReaches("connectionCreated", 4);
+		user.getEventManager().waitUntilEventReaches("accessAllowed", 2);
+		user.getEventManager().waitUntilEventReaches("streamCreated", 4);
+		user.getEventManager().waitUntilEventReaches("streamPlaying", 4);
+
+		final int numberOfVideos = user.getDriver().findElements(By.tagName("video")).size();
+		Assert.assertEquals("Expected 4 videos but found " + numberOfVideos, 4, numberOfVideos);
+		Assert.assertTrue("Videos were expected to have audio and video tracks", user.getEventManager()
+				.assertMediaTracks(user.getDriver().findElements(By.tagName("video")), true, true));
+
+		gracefullyLeaveParticipants(2);
+	}
+
+	@Test
+	@DisplayName("One2One Opera [Video + Audio]")
+	void oneToOneVideoAudioSessionOpera() throws Exception {
+
+		setupBrowser("opera");
+
+		log.info("One2One Opera [Video + Audio]");
 
 		user.getDriver().findElement(By.id("auto-join-checkbox")).click();
 		user.getDriver().findElement(By.id("one2one-btn")).click();
@@ -297,30 +346,6 @@ public class OpenViduTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 				.assertMediaTracks(user.getDriver().findElements(By.tagName("video")), true, true));
 
 		gracefullyLeaveParticipants(4);
-	}
-
-	@Test
-	@DisplayName("One2One Firefox [Video + Audio]")
-	void oneToOneVideoAudioSessionFirefox() throws Exception {
-
-		setupBrowser("firefox");
-
-		log.info("One2One Firefox [Video + Audio]");
-
-		user.getDriver().findElement(By.id("auto-join-checkbox")).click();
-		user.getDriver().findElement(By.id("one2one-btn")).click();
-
-		user.getEventManager().waitUntilEventReaches("connectionCreated", 4);
-		user.getEventManager().waitUntilEventReaches("accessAllowed", 2);
-		user.getEventManager().waitUntilEventReaches("streamCreated", 4);
-		user.getEventManager().waitUntilEventReaches("streamPlaying", 4);
-
-		final int numberOfVideos = user.getDriver().findElements(By.tagName("video")).size();
-		Assert.assertEquals("Expected 4 videos but found " + numberOfVideos, 4, numberOfVideos);
-		Assert.assertTrue("Videos were expected to have audio and video tracks", user.getEventManager()
-				.assertMediaTracks(user.getDriver().findElements(By.tagName("video")), true, true));
-
-		gracefullyLeaveParticipants(2);
 	}
 
 	@Test
@@ -3193,6 +3218,7 @@ public class OpenViduTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 			event = CustomWebhook.waitForEvent("webrtcConnectionCreated", 2);
 			Assert.assertEquals("Wrong number of properties in event 'webrtcConnectionCreated'", 10 + 1,
 					event.keySet().size());
+			String connectionId1 = event.get("participantId").getAsString();
 
 			event = CustomWebhook.waitForEvent("recordingStatusChanged", 10);
 			Assert.assertEquals("Wrong number of properties in event 'recordingStatusChanged'", 11 + 1,
@@ -3234,10 +3260,52 @@ public class OpenViduTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 			user.getDriver().findElement(By.id("add-user-btn")).click();
 			user.getDriver().findElement(By.cssSelector("#openvidu-instance-1 .join-btn")).click();
 
-			CustomWebhook.waitForEvent("participantJoined", 2);
+			event = CustomWebhook.waitForEvent("participantJoined", 2);
 			CustomWebhook.waitForEvent("webrtcConnectionCreated", 2);
 			CustomWebhook.waitForEvent("webrtcConnectionCreated", 2);
 			CustomWebhook.waitForEvent("webrtcConnectionCreated", 2);
+
+			String connectionId2 = event.get("participantId").getAsString();
+
+			// signalSent from client
+			long timestamp = System.currentTimeMillis();
+			user.getDriver().findElement(By.cssSelector(("#openvidu-instance-0 .message-btn"))).click();
+			user.getEventManager().waitUntilEventReaches("signal:chat", 2);
+			event = CustomWebhook.waitForEvent("signalSent", 1);
+			Assert.assertEquals("Wrong number of properties in event 'signalSent'", 6 + 1, event.keySet().size());
+			Assert.assertEquals("Wrong sessionId in webhook event", "TestSession",
+					event.get("sessionId").getAsString());
+			Assert.assertTrue("Wrong timestamp in webhook event", event.get("timestamp").getAsLong() > timestamp);
+			Assert.assertEquals("Wrong from in webhook event", connectionId1, event.get("from").getAsString());
+			Assert.assertEquals("Wrong type in webhook event", "chat", event.get("type").getAsString());
+			Assert.assertTrue("Wrong data in webhook event", !event.get("data").getAsString().isEmpty());
+			Assert.assertEquals("Wrong event name in webhook event", "signalSent", event.get("event").getAsString());
+			JsonArray toArray = event.get("to").getAsJsonArray();
+			Assert.assertEquals("Wrong to array size", 2, toArray.size());
+			Assert.assertTrue("Wrong to array content in webhook event",
+					toArray.contains(JsonParser.parseString(connectionId1)));
+			Assert.assertTrue("Wrong to array content in webhook event",
+					toArray.contains(JsonParser.parseString(connectionId2)));
+
+			// signalSent from server
+			CustomHttpClient restClient = new CustomHttpClient(OPENVIDU_URL, "OPENVIDUAPP", OPENVIDU_SECRET);
+			restClient.rest(HttpMethod.POST, "/openvidu/api/signal",
+					"{'session':'TestSession','type':'chat','to':['" + connectionId1 + "'],'data':'SERVER_DATA'}",
+					HttpStatus.SC_OK);
+			user.getEventManager().waitUntilEventReaches("signal:chat", 3);
+			event = CustomWebhook.waitForEvent("signalSent", 1);
+			Assert.assertEquals("Wrong number of properties in event 'signalSent'", 6 + 1, event.keySet().size());
+			Assert.assertEquals("Wrong sessionId in webhook event", "TestSession",
+					event.get("sessionId").getAsString());
+			Assert.assertTrue("Wrong timestamp in webhook event", event.get("timestamp").getAsLong() > timestamp);
+			Assert.assertTrue("Wrong from in webhook event", event.get("from").isJsonNull());
+			Assert.assertEquals("Wrong type in webhook event", "chat", event.get("type").getAsString());
+			Assert.assertEquals("Wrong data in webhook event", "SERVER_DATA", event.get("data").getAsString());
+			Assert.assertEquals("Wrong event name in webhook event", "signalSent", event.get("event").getAsString());
+			toArray = event.get("to").getAsJsonArray();
+			Assert.assertEquals("Wrong to array size", 1, toArray.size());
+			Assert.assertTrue("Wrong to array content in webhook event",
+					toArray.contains(JsonParser.parseString(connectionId1)));
 
 			user.getDriver().findElement(By.id("session-api-btn-0")).click();
 			Thread.sleep(1000);

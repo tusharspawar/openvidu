@@ -57,6 +57,7 @@ printf "\n    - Https Port: %s" "${PROXY_HTTPS_PORT}"
 printf "\n    - Worker Connections: %s" "${WORKER_CONNECTIONS}"
 printf "\n    - Allowed Access in Openvidu Dashboard: %s" "${ALLOWED_ACCESS_TO_DASHBOARD}"
 printf "\n    - Allowed Access in Openvidu API: %s" "${ALLOWED_ACCESS_TO_RESTAPI}"
+printf "\n    - Support deprecated API: %s" "${SUPPORT_DEPRECATED_API}"
 printf "\n    - Redirect www to non-www: %s" "${REDIRECT_WWW}"
 printf "\n"
 printf "\n  Config Openvidu Application:"
@@ -187,9 +188,26 @@ EOF
 
 # Load nginx conf files
 rm /etc/nginx/conf.d/*
-cp /default_nginx_conf/default* /etc/nginx/conf.d
+
+# If custom config, don't generate configuration files
+if [[ -f /custom-nginx/custom-nginx.conf ]]; then
+  cp /custom-nginx/custom-nginx.conf /etc/nginx/conf.d/custom-nginx.conf
+  printf "\n"
+  printf "\n  ======================================="
+  printf "\n  =         START OPENVIDU PROXY        ="
+  printf "\n  =         WITH CUSTOM CONFIG          ="
+  printf "\n  ======================================="
+  printf "\n\n"
+  nginx -s reload
+
+  # nginx logs
+  tail -f /var/log/nginx/*.log
+  exit 0
+fi
 
 # Replace config files
+cp /default_nginx_conf/default* /etc/nginx/conf.d
+
 sed -e '/{ssl_config}/{r default_nginx_conf/global/ssl_config.conf' -e 'd}' -i /etc/nginx/conf.d/*
 sed -e '/{proxy_config}/{r default_nginx_conf/global/proxy_config.conf' -e 'd}' -i /etc/nginx/conf.d/*
 sed -e '/{nginx_status}/{r default_nginx_conf/global/nginx_status.conf' -e 'd}' -i /etc/nginx/conf.d/*

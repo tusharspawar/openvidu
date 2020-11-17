@@ -2,6 +2,7 @@
 set -eu -o pipefail
 
 CF_RELEASE=${CF_RELEASE:-false}
+AWS_KEY_NAME=${AWS_KEY_NAME:-}
 
 if [[ $CF_RELEASE == "true" ]]; then
     git checkout v$OPENVIDU_PRO_VERSION
@@ -18,7 +19,7 @@ TEMPJSON=$(mktemp -t cloudformation-XXX --suffix .json)
 getUbuntuAmiId() {
     local AMI_ID=$(
         aws --region ${1} ec2 describe-images \
-        --filters Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64* \
+        --filters Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64* \
         --query 'Images[*].[ImageId,CreationDate]' \
         --output text  \
         | sort -k2 -r  | head -n1 | cut -d$'\t' -f1
@@ -120,11 +121,21 @@ echo "Cleaning up"
 aws cloudformation delete-stack --stack-name openvidu-${DATESTAMP}
 
 # Wait for the instance
-aws ec2 wait image-available --image-ids ${OV_RAW_AMI_ID}
+# Unfortunately, aws cli does not have a way to increase timeout
+WAIT_RETRIES=0
+WAIT_MAX_RETRIES=3
+until [ "${WAIT_RETRIES}" -ge "${WAIT_MAX_RETRIES}" ]
+do
+   aws ec2 wait image-available --image-ids ${OV_RAW_AMI_ID} && break
+   WAIT_RETRIES=$((WAIT_RETRIES+1)) 
+   sleep 5
+done
+
 
 # Updating the template
 sed "s/OV_AMI_ID/${OV_RAW_AMI_ID}/" cfn-openvidu-server-pro-no-market.yaml.template > cfn-openvidu-server-pro-no-market-${OPENVIDU_PRO_VERSION}.yaml
 sed -i "s/KMS_AMI_ID/${KMS_RAW_AMI_ID}/g" cfn-openvidu-server-pro-no-market-${OPENVIDU_PRO_VERSION}.yaml
+sed -i "s/AWS_DOCKER_TAG/${AWS_DOCKER_TAG}/g" cfn-openvidu-server-pro-no-market-${OPENVIDU_PRO_VERSION}.yaml
 
 rm $TEMPJSON
 rm cfn-mkt-kms-ami.yaml

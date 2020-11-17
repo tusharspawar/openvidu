@@ -127,7 +127,7 @@ export class Publisher extends StreamManager {
      */
     publishAudio(value: boolean): void {
         if (this.stream.audioActive !== value) {
-            const affectedMediaStream: MediaStream = this.stream.displayMyRemote() ? this.stream.localMediaStreamWhenSubscribedToRemote : this.stream.getMediaStream();
+            const affectedMediaStream: MediaStream = this.stream.displayMyRemote() ? this.stream.localMediaStreamWhenSubscribedToRemote! : this.stream.getMediaStream();
             affectedMediaStream.getAudioTracks().forEach((track) => {
                 track.enabled = value;
             });
@@ -175,7 +175,7 @@ export class Publisher extends StreamManager {
      */
     publishVideo(value: boolean): void {
         if (this.stream.videoActive !== value) {
-            const affectedMediaStream: MediaStream = this.stream.displayMyRemote() ? this.stream.localMediaStreamWhenSubscribedToRemote : this.stream.getMediaStream();
+            const affectedMediaStream: MediaStream = this.stream.displayMyRemote() ? this.stream.localMediaStreamWhenSubscribedToRemote! : this.stream.getMediaStream();
             affectedMediaStream.getVideoTracks().forEach((track) => {
                 track.enabled = value;
             });
@@ -304,7 +304,7 @@ export class Publisher extends StreamManager {
     replaceTrack(track: MediaStreamTrack): Promise<any> {
 
         const replaceMediaStreamTrack = () => {
-            const mediaStream: MediaStream = this.stream.displayMyRemote() ? this.stream.localMediaStreamWhenSubscribedToRemote : this.stream.getMediaStream();
+            const mediaStream: MediaStream = this.stream.displayMyRemote() ? this.stream.localMediaStreamWhenSubscribedToRemote! : this.stream.getMediaStream();
             let removedTrack: MediaStreamTrack;
             if (track.kind === 'video') {
                 removedTrack = mediaStream.getVideoTracks()[0];
@@ -314,7 +314,7 @@ export class Publisher extends StreamManager {
             mediaStream.removeTrack(removedTrack);
             removedTrack.stop();
             mediaStream.addTrack(track);
-            this.session.sendVideoData(this.stream.streamManager);
+            this.session.sendVideoData(this.stream.streamManager, 5, true, 5);
         }
 
         return new Promise((resolve, reject) => {
@@ -613,8 +613,8 @@ export class Publisher extends StreamManager {
                 .then(myConstraints => {
 
                     if (!!myConstraints.videoTrack && !!myConstraints.audioTrack ||
-                      !!myConstraints.audioTrack && myConstraints.constraints?.video === false ||
-                      !!myConstraints.videoTrack && myConstraints.constraints?.audio === false) {
+                        !!myConstraints.audioTrack && myConstraints.constraints?.video === false ||
+                        !!myConstraints.videoTrack && myConstraints.constraints?.audio === false) {
                         // No need to call getUserMedia at all. MediaStreamTracks already provided
                         successCallback(this.openvidu.addAlreadyProvidedTracks(myConstraints, new MediaStream()));
                         // Return as we do not need to process further

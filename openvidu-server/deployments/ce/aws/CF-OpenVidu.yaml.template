@@ -44,18 +44,18 @@ Parameters:
   # OpenVidu configuration
 
   OpenViduSecret:
-    Description: "Secret to connect to this OpenVidu Platform. No whitespaces or quotations allowed"
+    Description: "Secret to connect to this OpenVidu Platform. Cannot be empty and must contain only alphanumeric characters [a-zA-Z0-9], hypens ('-') and underscores ('_')"
     Type: String
-    AllowedPattern: ^((?!")(?! ).)+$
+    AllowedPattern: ^[a-zA-Z0-9_-]+$
     NoEcho: true
-    ConstraintDescription: OpenVidu Secret is mandatory
+    ConstraintDescription: "Cannot be empty and must contain only alphanumeric characters [a-zA-Z0-9], hypens ('-') and underscores ('_')"
 
   # EC2 Instance configuration
 
   InstanceType:
     Description: "Specifies the EC2 instance type for your OpenVidu instance"
     Type: String
-    Default: t2.xlarge
+    Default: c5.xlarge
     AllowedValues:
       - t2.large
       - t2.xlarge

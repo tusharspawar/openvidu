@@ -55,4 +55,5 @@ public class TokenGenerator {
 				.data(serverMetadata).record(record).role(role).kurentoOptions(kurentoOptions).build();
 		return new Token(token, sessionId, connectionProperties, turnCredentials);
 	}
+
 }

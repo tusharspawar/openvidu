@@ -385,7 +385,7 @@ export class Session extends EventDispatcher {
                 this.connection.addStream(publisher.stream);
                 publisher.stream.publish()
                     .then(() => {
-                        this.sendVideoData(publisher, 5);
+                        this.sendVideoData(publisher, 8, true, 5);
                         resolve();
                     })
                     .catch(error => {
@@ -399,7 +399,7 @@ export class Session extends EventDispatcher {
                         publisher.reestablishStreamPlayingEvent();
                         publisher.stream.publish()
                             .then(() => {
-                                this.sendVideoData(publisher, 5);
+                                this.sendVideoData(publisher, 8, true, 5);
                                 resolve();
                             })
                             .catch(error => {
@@ -802,12 +802,12 @@ export class Session extends EventDispatcher {
 
                 .then(connection => {
 
-                    const streamEvent = new StreamEvent(true, this, 'streamDestroyed', connection.stream, msg.reason);
+                    const streamEvent = new StreamEvent(true, this, 'streamDestroyed', connection.stream!, msg.reason);
                     this.ee.emitEvent('streamDestroyed', [streamEvent]);
                     streamEvent.callDefaultBehavior();
 
                     // Deleting the remote stream
-                    const streamId: string = connection.stream.streamId;
+                    const streamId: string = connection.stream!.streamId;
                     delete this.remoteStreamsCreated[streamId];
 
                     if (Object.keys(this.remoteStreamsCreated).length === 0) {
@@ -957,11 +957,11 @@ export class Session extends EventDispatcher {
      */
     onNetworkQualityLevelChangedChanged(msg): void {
         if (msg.connectionId === this.connection.connectionId) {
-            this.ee.emitEvent('networkQualityLevelChanged', [new NetworkQualityLevelChangedEvent(this, msg.qualityLevel, this.connection)]);
+            this.ee.emitEvent('networkQualityLevelChanged', [new NetworkQualityLevelChangedEvent(this, msg.newValue, msg.oldValue, this.connection)]);
         } else {
             this.getConnection(msg.connectionId, 'Connection not found for connectionId ' + msg.connectionId)
                 .then((connection: Connection) => {
-                    this.ee.emitEvent('networkQualityLevelChanged', [new NetworkQualityLevelChangedEvent(this, msg.qualityLevel, connection)]);
+                    this.ee.emitEvent('networkQualityLevelChanged', [new NetworkQualityLevelChangedEvent(this, msg.newValue, msg.oldValue, connection)]);
                 })
                 .catch(openViduError => {
                     logger.error(openViduError);
@@ -993,9 +993,9 @@ export class Session extends EventDispatcher {
         };
         this.getConnection(msg.senderConnectionId, 'Connection not found for connectionId ' + msg.senderConnectionId + ' owning endpoint ' + msg.endpointName + '. Ice candidate will be ignored: ' + candidate)
             .then(connection => {
-                const stream = connection.stream;
+                const stream: Stream = connection.stream!;
                 stream.getWebRtcPeer().addIceCandidate(candidate).catch(error => {
-                    logger.error('Error adding candidate for ' + stream.streamId
+                    logger.error('Error adding candidate for ' + stream!.streamId
                         + ' stream of endpoint ' + msg.endpointName + ': ' + error);
                 });
             })
@@ -1077,8 +1077,8 @@ export class Session extends EventDispatcher {
         this.getConnection(connectionId, 'No connection found for connectionId ' + connectionId)
             .then(connection => {
                 logger.info('Filter event dispatched');
-                const stream: Stream = connection.stream;
-                stream.filter.handlers[response.eventType](new FilterEvent(stream.filter, response.eventType, response.data));
+                const stream: Stream = connection.stream!;
+                stream.filter!.handlers[response.eventType](new FilterEvent(stream.filter!, response.eventType, response.data));
             });
     }
 
@@ -1162,30 +1162,46 @@ export class Session extends EventDispatcher {
         return joinParams;
     }
 
-    sendVideoData(streamManager: StreamManager, intervalSeconds: number = 1) {
+    sendVideoData(streamManager: StreamManager, intervalSeconds: number = 1, doInterval: boolean = false, maxLoops: number = 1) {
         if (
             platform.isChromeBrowser() || platform.isChromeMobileBrowser() || platform.isOperaBrowser() ||
-            platform.isOperaMobileBrowser() || platform.isElectron() || (platform.isSafariBrowser() && !platform.isIonicIos()) ||
-            platform.isAndroidBrowser() || platform.isSamsungBrowser() || platform.isIonicAndroid() ||
-            (platform.isIPhoneOrIPad() && platform.isIOSWithSafari())
+            platform.isOperaMobileBrowser() || platform.isEdgeBrowser() || platform.isElectron() ||
+            (platform.isSafariBrowser() && !platform.isIonicIos()) || platform.isAndroidBrowser() ||
+            platform.isSamsungBrowser() || platform.isIonicAndroid() || (platform.isIPhoneOrIPad() && platform.isIOSWithSafari())
         ) {
-            setTimeout(async () => {
-                const statsMap = await streamManager.stream.getWebRtcPeer().pc.getStats();
-                statsMap.forEach((stats) => {
-                    if ("frameWidth" in stats) {
-                        this.openvidu.sendRequest('videoData', {
-                            height: stats.frameHeight,
-                            width: stats.frameWidth,
-                            videoActive: streamManager.stream.videoActive,
-                            audioActive: streamManager.stream.audioActive
-                        }, (error, response) => {
-                            if (error) {
-                                logger.error("Error sending 'videoData' event", error);
-                            }
-                        });
+            const obtainAndSendVideo = async () => {
+                const statsMap = await streamManager.stream.getRTCPeerConnection().getStats();
+                const arr: any[] = [];
+                statsMap.forEach(stats => {
+                    if (("frameWidth" in stats) && ("frameHeight" in stats) && (arr.length === 0)) {
+                        arr.push(stats);
                     }
                 });
-            }, intervalSeconds * 1000);
+                if (arr.length > 0) {
+                    this.openvidu.sendRequest('videoData', {
+                        height: arr[0].frameHeight,
+                        width: arr[0].frameWidth,
+                        videoActive: streamManager.stream.videoActive != null ? streamManager.stream.videoActive : false,
+                        audioActive: streamManager.stream.audioActive != null ? streamManager.stream.audioActive : false
+                    }, (error, response) => {
+                        if (error) {
+                            logger.error("Error sending 'videoData' event", error);
+                        }
+                    });
+                }
+            }
+            if (doInterval) {
+                let loops = 1;
+                let timer = setTimeout(async function myTimer() {
+                    await obtainAndSendVideo();
+                    if (loops < maxLoops) {
+                        loops++;
+                        timer = setTimeout(myTimer, intervalSeconds * 1000);
+                    }
+                }, intervalSeconds * 1000);
+            } else {
+                setTimeout(obtainAndSendVideo, intervalSeconds * 1000);
+            }
         } else if (platform.isFirefoxBrowser() || platform.isFirefoxMobileBrowser() || platform.isIonicIos()) {
             // Basic version for Firefox and Ionic iOS. They do not support stats
             this.openvidu.sendRequest('videoData', {

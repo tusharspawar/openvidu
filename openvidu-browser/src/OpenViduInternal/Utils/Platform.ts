@@ -60,6 +60,14 @@ export class PlatformUtils {
 	/**
 	 * @hidden
 	 */
+	public isEdgeBrowser(): boolean {
+		const version = platform?.version ? parseFloat(platform.version) : -1;
+		return platform.name === "Microsoft Edge" && version >= 80;
+	}
+
+	/**
+	 * @hidden
+	 */
 	public isAndroidBrowser(): boolean {
 		return platform.name === "Android Browser";
 	}
@@ -138,17 +146,16 @@ export class PlatformUtils {
 	 */
 	public canScreenShare(): boolean {
 		const version = platform?.version ? parseFloat(platform.version) : -1;
-
 		// Reject mobile devices
 		if (this.isMobileDevice()) {
 			return false;
 		}
-
 		return (
 			this.isChromeBrowser() ||
 			this.isFirefoxBrowser() ||
 			this.isOperaBrowser() ||
 			this.isElectron() ||
+			this.isEdgeBrowser() ||
 			(this.isSafariBrowser() && version >= 13)
 		);
 	}

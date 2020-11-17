@@ -343,11 +343,11 @@ export class OpenVidu {
     }
 
     // Accept: Chrome (desktop and Android), Firefox (desktop and Android), Opera (desktop and Android),
-    // Safari (OSX and iOS), Ionic (Android and iOS), Samsung Internet Browser (Android)
-    if (platform.isSafariBrowser() || platform.isChromeBrowser() || platform.isChromeMobileBrowser() ||
-        platform.isFirefoxBrowser()  || platform.isFirefoxMobileBrowser() || platform.isOperaBrowser() ||
-        platform.isOperaMobileBrowser() || platform.isAndroidBrowser() || platform.isElectron() ||
-        platform.isSamsungBrowser()
+    // Safari (OSX and iOS), Edge Chromium (>= 80), Ionic (Android and iOS), Samsung Internet Browser (Android)
+    if (platform.isChromeBrowser() || platform.isChromeMobileBrowser() ||
+      platform.isFirefoxBrowser() || platform.isFirefoxMobileBrowser() || platform.isOperaBrowser() ||
+      platform.isOperaMobileBrowser() || platform.isSafariBrowser() || platform.isEdgeBrowser() ||
+      platform.isAndroidBrowser() || platform.isElectron() || platform.isSamsungBrowser()
     ) {
       return 1;
     }
@@ -878,7 +878,7 @@ export class OpenVidu {
         // Screen sharing
 
         if (!this.checkScreenSharingCapabilities()) {
-          const error = new OpenViduError(OpenViduErrorName.SCREEN_SHARING_NOT_SUPPORTED, 'You can only screen share in desktop Chrome, Firefox, Opera, Safari (>=13.0) or Electron. Detected client: ' + platform.getName());
+          const error = new OpenViduError(OpenViduErrorName.SCREEN_SHARING_NOT_SUPPORTED, 'You can only screen share in desktop Chrome, Firefox, Opera, Safari (>=13.0), Edge (>= 80) or Electron. Detected client: ' + platform.getName() + ' ' + platform.getVersion());
           logger.error(error);
           reject(error);
         } else {
@@ -1047,4 +1047,4 @@ export class OpenVidu {
       (platform.isElectron() && videoSource.startsWith('screen:'))
   }
 
- }
+}
