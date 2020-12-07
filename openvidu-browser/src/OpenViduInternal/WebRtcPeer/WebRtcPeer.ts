@@ -181,6 +181,10 @@ export class WebRtcPeer {
                 // Rest of platforms
                 this.pc.createOffer(constraints).then(offer => {
                     logger.debug('Created SDP offer');
+                    offer.sdp = offer.sdp?.replace(
+                        'minptime=10;useinbandfec=1',
+                        'stereo=1;sprop-stereo=1;maxaveragebitrate=510000;usedtx=1;cbr=1;useinbandfec=1;ptime=20;minptime=20;maxptime=20;maxplaybackrate=48000;sprop-maxcapturerate=48000'
+                    );
                     return this.pc.setLocalDescription(offer);
                 })
                     .then(() => {
