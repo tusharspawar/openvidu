@@ -28,6 +28,8 @@ import { EventsDialogComponent } from '../dialogs/events-dialog/events-dialog.co
 import { SessionPropertiesDialogComponent } from '../dialogs/session-properties-dialog/session-properties-dialog.component';
 import { SessionApiDialogComponent } from '../dialogs/session-api-dialog/session-api-dialog.component';
 import { PublisherPropertiesDialogComponent } from '../dialogs/publisher-properties-dialog/publisher-properties-dialog.component';
+import { SessionInfoDialogComponent } from "../dialogs/session-info-dialog/session-info-dialog.component";
+import {ShowCodecDialogComponent} from "../dialogs/show-codec-dialog/show-codec-dialog.component";
 
 
 export interface SessionConf {
@@ -93,7 +95,9 @@ export class OpenviduInstanceComponent implements OnInit, OnChanges, OnDestroy {
     defaultOutputMode: Recording.OutputMode.COMPOSED,
     defaultRecordingLayout: RecordingLayout.BEST_FIT,
     defaultCustomLayout: '',
-    customSessionId: ''
+    customSessionId: '',
+    forcedVideoCodec: null,
+    allowTranscoding: null
   };
 
   publisherProperties: PublisherProperties = {
@@ -521,7 +525,12 @@ export class OpenviduInstanceComponent implements OnInit, OnChanges, OnDestroy {
       this.republishPossible = false;
     }).catch((error: OpenViduError) => {
       console.error(error);
-      alert(error.name + ": " + error.message);
+      if (!error.name) {
+        alert(error);
+      } else {
+        alert(error.name + ": " + error.message);
+      }
+
       this.republishPossible = true;
       this.session.unpublish(this.publisher);
       delete this.publisher;
@@ -623,7 +632,10 @@ export class OpenviduInstanceComponent implements OnInit, OnChanges, OnDestroy {
             customLayout: this.sessionProperties.defaultCustomLayout,
             resolution: '1920x1080',
             hasAudio: true,
-            hasVideo: true
+            hasVideo: true,
+            mediaNode: {
+              id: ''
+            }
           }
       },
       width: '425px',
@@ -709,6 +721,15 @@ export class OpenviduInstanceComponent implements OnInit, OnChanges, OnDestroy {
         this.optionsVideo = this.publisherProperties.videoSource === 'screen' ? 'screen' : 'video';
       }
       document.getElementById('publisher-settings-btn-' + this.index).classList.remove('cdk-program-focused');
+    });
+  }
+
+  openSessionInfo() {
+    this.dialog.open(SessionInfoDialogComponent, {
+      data: {
+        sessionAPI: this.sessionAPI
+      },
+      width: '450px'
     });
   }
 

@@ -54,6 +54,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonSyntaxException;
 
 import io.openvidu.java.client.OpenViduRole;
+import io.openvidu.java.client.VideoCodec;
 import io.openvidu.server.OpenViduServer;
 import io.openvidu.server.cdr.CDREventName;
 import io.openvidu.server.config.Dotenv.DotenvFormatException;
@@ -180,6 +181,10 @@ public class OpenviduConfig {
 
 	protected int openviduSessionsGarbageThreshold;
 
+	private VideoCodec openviduForcedCodec;
+
+	private boolean openviduAllowTranscoding;
+
 	private String dotenvPath;
 
 	// Derived properties
@@ -232,6 +237,10 @@ public class OpenviduConfig {
 
 	public boolean isOpenViduRecordingDebug() {
 		return openViduRecordingDebug;
+	}
+
+	public boolean isRecordingComposedExternal() {
+		return false;
 	}
 
 	public String getOpenViduRecordingPath() {
@@ -312,6 +321,14 @@ public class OpenviduConfig {
 
 	public int getSessionGarbageThreshold() {
 		return openviduSessionsGarbageThreshold;
+	}
+
+	public VideoCodec getOpenviduForcedCodec() {
+		return openviduForcedCodec;
+	}
+
+	public boolean isOpenviduAllowingTranscoding() {
+		return openviduAllowTranscoding;
 	}
 
 	public String getDotenvPath() {
@@ -509,6 +526,9 @@ public class OpenviduConfig {
 
 		openviduSessionsGarbageInterval = asNonNegativeInteger("OPENVIDU_SESSIONS_GARBAGE_INTERVAL");
 		openviduSessionsGarbageThreshold = asNonNegativeInteger("OPENVIDU_SESSIONS_GARBAGE_THRESHOLD");
+
+		openviduForcedCodec = asEnumValue("OPENVIDU_STREAMS_FORCED_VIDEO_CODEC", VideoCodec.class);
+		openviduAllowTranscoding = asBoolean("OPENVIDU_STREAMS_ALLOW_TRANSCODING");
 
 		kmsUrisList = checkKmsUris();
 

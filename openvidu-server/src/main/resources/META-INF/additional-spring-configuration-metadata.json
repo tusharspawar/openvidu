@@ -148,6 +148,18 @@
 			"defaultValue": 300
 		},
 		{
+			"name": "OPENVIDU_STREAMS_FORCED_VIDEO_CODEC",
+			"type": "java.lang.String",
+			"description": "Defines which video codec is being forced to be used in the browser/client",
+			"defaultValue": "VP8"
+		},
+		{
+			"name": "OPENVIDU_STREAMS_ALLOW_TRANSCODING",
+			"type": "java.lang.Boolean",
+			"description": "Defines if transcoding is allowed or not when OPENVIDU_STREAMS_FORCED_VIDEO_CODEC is not a compatible codec with the browser/client.",
+			"defaultValue": false
+		},
+		{
 			"name": "OPENVIDU_SESSIONS_GARBAGE_INTERVAL",
 			"type": "java.lang.Integer",
 			"description": "How often the garbage collector of non active sessions runs. This helps cleaning up sessions that have been initialized through REST API (and maybe tokens have been created for them) but have had no users connected. Default to 900s (15 mins). 0 to disable non active sessions garbage collector",

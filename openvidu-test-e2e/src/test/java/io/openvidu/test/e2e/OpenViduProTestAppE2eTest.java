@@ -35,6 +35,8 @@ import com.mashape.unirest.http.HttpMethod;
 
 import io.openvidu.java.client.Connection;
 import io.openvidu.java.client.ConnectionProperties;
+import io.openvidu.java.client.ConnectionType;
+import io.openvidu.java.client.KurentoOptions;
 import io.openvidu.java.client.OpenVidu;
 import io.openvidu.java.client.OpenViduHttpException;
 import io.openvidu.java.client.OpenViduRole;
@@ -166,7 +168,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 		String recPath = "/opt/openvidu/recordings/" + sessionName + "/";
 		Recording recording = new OpenVidu(OpenViduTestAppE2eTest.OPENVIDU_URL, OpenViduTestAppE2eTest.OPENVIDU_SECRET)
 				.getRecording(sessionName);
-		checkIndividualRecording(recPath, recording, 4, "opus", "vp8", true);
+		this.recordingUtils.checkIndividualRecording(recPath, recording, 4, "opus", "vp8", true);
 
 		// Analyze INDIVIDUAL recording metadata
 		new Unzipper().unzipFile(recPath, recording.getName() + ".zip");
@@ -222,7 +224,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 		 **/
 		String body = "{'customSessionId': 'CUSTOM_SESSION_ID'}";
 		restClient.rest(HttpMethod.POST, "/openvidu/api/sessions", body, HttpStatus.SC_OK);
-		body = "{'role':'PUBLISHER','record':false}";
+		body = "{'role':'PUBLISHER','record':false,'data':'MY_SERVER_PRO_DATA'}";
 		JsonObject res = restClient.rest(HttpMethod.POST, "/openvidu/api/sessions/CUSTOM_SESSION_ID/connection", body,
 				HttpStatus.SC_OK);
 		final String token = res.get("token").getAsString();
@@ -251,22 +253,22 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 		restClient.rest(HttpMethod.PATCH, "/openvidu/api/sessions/CUSTOM_SESSION_ID/connection/" + connectionId,
 				"{'record':false}", HttpStatus.SC_OK);
 		restClient.rest(HttpMethod.PATCH, "/openvidu/api/sessions/CUSTOM_SESSION_ID/connection/" + connectionId,
-				"{'role':'PUBLISHER','record':false}", HttpStatus.SC_OK);
+				"{'role':'PUBLISHER','record':false,'data':'OTHER_DATA'}", HttpStatus.SC_OK);
 
 		// Updating only role should let record value untouched
 		restClient.rest(HttpMethod.PATCH, "/openvidu/api/sessions/CUSTOM_SESSION_ID/connection/" + connectionId,
 				"{'role':'MODERATOR'}", HttpStatus.SC_OK, true, true, true,
 				mergeJson(DEFAULT_JSON_PENDING_CONNECTION,
 						"{'id':'" + connectionId + "','connectionId':'" + connectionId
-								+ "','role':'MODERATOR','serverData':'','record':false,'token':'" + token
-								+ "','sessionId':'CUSTOM_SESSION_ID','createdAt':" + createdAt + "}",
+								+ "','role':'MODERATOR','serverData':'MY_SERVER_PRO_DATA','record':false,'token':'"
+								+ token + "','sessionId':'CUSTOM_SESSION_ID','createdAt':" + createdAt + "}",
 						new String[0]));
 		// Updating only record should let role value untouched
 		restClient.rest(HttpMethod.PATCH, "/openvidu/api/sessions/CUSTOM_SESSION_ID/connection/" + connectionId,
 				"{'record':true}", HttpStatus.SC_OK, true, true, true,
 				mergeJson(DEFAULT_JSON_PENDING_CONNECTION,
 						"{'id':'" + connectionId + "','connectionId':'" + connectionId
-								+ "','role':'MODERATOR','serverData':'','token':'" + token
+								+ "','role':'MODERATOR','serverData':'MY_SERVER_PRO_DATA','token':'" + token
 								+ "','sessionId':'CUSTOM_SESSION_ID','createdAt':" + createdAt + "}",
 						new String[0]));
 
@@ -285,6 +287,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 				new ConnectionProperties.Builder().role(OpenViduRole.SUBSCRIBER).record(false).build());
 		Assert.assertEquals("Wrong role Connection property", OpenViduRole.SUBSCRIBER, connection.getRole());
 		Assert.assertFalse("Wrong record Connection property", connection.record());
+		Assert.assertEquals("Wrong data Connection property", "MY_SERVER_PRO_DATA", connection.getServerData());
 
 		setupBrowser("chrome");
 
@@ -345,7 +348,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 						"{'id':'" + connectionId + "','connectionId':'" + connectionId
 								+ "','role':'MODERATOR','record':false,'token':'" + token
 								+ "','sessionId':'CUSTOM_SESSION_ID','createdAt':" + createdAt + ",'activeAt':"
-								+ activeAt + ",'serverData':''}",
+								+ activeAt + ",'serverData':'MY_SERVER_PRO_DATA'}",
 						new String[] { "location", "platform", "clientData" }));
 
 		user.getEventManager().waitUntilEventReaches("connectionPropertyChanged", 1);
@@ -357,7 +360,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 						"{'id':'" + connectionId + "','connectionId':'" + connectionId
 								+ "','role':'MODERATOR','record':true,'token':'" + token
 								+ "','sessionId':'CUSTOM_SESSION_ID','createdAt':" + createdAt + ",'activeAt':"
-								+ activeAt + ",'serverData':''}",
+								+ activeAt + ",'serverData':'MY_SERVER_PRO_DATA'}",
 						new String[] { "location", "platform", "clientData" }));
 
 		user.getEventManager().waitUntilEventReaches("connectionPropertyChanged", 2);
@@ -368,7 +371,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 						"{'id':'" + connectionId + "','connectionId':'" + connectionId
 								+ "','role':'SUBSCRIBER','record':true,'token':'" + token
 								+ "','sessionId':'CUSTOM_SESSION_ID','createdAt':" + createdAt + ",'activeAt':"
-								+ activeAt + ",'serverData':''}",
+								+ activeAt + ",'serverData':'MY_SERVER_PRO_DATA'}",
 						new String[] { "location", "platform", "clientData" }));
 
 		user.getEventManager().waitUntilEventReaches("connectionPropertyChanged", 3);
@@ -379,7 +382,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 						"{'id':'" + connectionId + "','connectionId':'" + connectionId
 								+ "','role':'PUBLISHER','record':true,'token':'" + token
 								+ "','sessionId':'CUSTOM_SESSION_ID','createdAt':" + createdAt + ",'activeAt':"
-								+ activeAt + ",'serverData':''}",
+								+ activeAt + ",'serverData':'MY_SERVER_PRO_DATA'}",
 						new String[] { "location", "platform", "clientData" }));
 
 		user.getEventManager().waitUntilEventReaches("connectionPropertyChanged", 4);
@@ -391,7 +394,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 		user.getDriver().findElement(By.id("connection-id-field")).sendKeys(connectionId);
 		user.getDriver().findElement(By.id("update-connection-api-btn")).click();
 		user.getWaiter().until(ExpectedConditions.attributeToBe(By.id("api-response-text-area"), "value",
-				"Connection updated: {\"role\":\"PUBLISHER\",\"record\":true}"));
+				"Connection updated: {\"role\":\"PUBLISHER\",\"record\":true,\"data\":\"MY_SERVER_PRO_DATA\"}"));
 		user.getDriver().findElement(By.id("record-checkbox")).click();
 		user.getDriver().findElement(By.id("token-role-select")).click();
 		Thread.sleep(500);
@@ -399,7 +402,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 		Thread.sleep(500);
 		user.getDriver().findElement(By.id("update-connection-api-btn")).click();
 		user.getWaiter().until(ExpectedConditions.attributeToBe(By.id("api-response-text-area"), "value",
-				"Connection updated: {\"role\":\"SUBSCRIBER\",\"record\":false}"));
+				"Connection updated: {\"role\":\"SUBSCRIBER\",\"record\":false,\"data\":\"MY_SERVER_PRO_DATA\"}"));
 
 		user.getEventManager().waitUntilEventReaches("connectionPropertyChanged", 6);
 
@@ -440,7 +443,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 		Assert.assertFalse("Session object should not have changed", session.fetch());
 		Assert.assertEquals("Wrong role in Connection object", OpenViduRole.MODERATOR, connection.getRole());
 		Assert.assertFalse("Wrong record in Connection object", connection.record());
-		Assert.assertTrue("Wrong data in Connection object", connection.getServerData().isEmpty());
+		Assert.assertEquals("Wrong data in Connection object", "MY_SERVER_PRO_DATA", connection.getServerData());
 		Assert.assertEquals("Wrong status in Connection object", "active", connection.getStatus());
 
 		user.getEventManager().resetEventThread();
@@ -473,7 +476,7 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 						+ "'OPENVIDU_PRO_STATS_MONITORING_INTERVAL':0,'OPENVIDU_PRO_STATS_WEBRTC_INTERVAL':0,'OPENVIDU_PRO_CLUSTER_ID':'STR',"
 						+ "'OPENVIDU_PRO_CLUSTER_ENVIRONMENT':'STR','OPENVIDU_PRO_CLUSTER_MEDIA_NODES':0,'OPENVIDU_PRO_CLUSTER_PATH':'STR','OPENVIDU_PRO_CLUSTER_AUTOSCALING':false,"
 						+ "'OPENVIDU_PRO_ELASTICSEARCH':true,'OPENVIDU_PRO_ELASTICSEARCH_VERSION':'STR','OPENVIDU_PRO_ELASTICSEARCH_HOST':'STR','OPENVIDU_PRO_KIBANA':true,'OPENVIDU_PRO_KIBANA_VERSION':'STR',"
-						+ "'OPENVIDU_PRO_KIBANA_HOST':'STR','OPENVIDU_PRO_RECORDING_STORAGE':'STR','OPENVIDU_PRO_NETWORK_QUALITY':false}");
+						+ "'OPENVIDU_PRO_KIBANA_HOST':'STR','OPENVIDU_PRO_RECORDING_STORAGE':'STR','OPENVIDU_PRO_NETWORK_QUALITY':false,'OPENVIDU_STREAMS_ALLOW_TRANSCODING':false,'OPENVIDU_STREAMS_FORCED_VIDEO_CODEC':'STR'}");
 
 		/** GET /openvidu/api/health **/
 		restClient.rest(HttpMethod.GET, "/openvidu/api/health", null, HttpStatus.SC_OK, true, true, true,
@@ -486,17 +489,47 @@ public class OpenViduProTestAppE2eTest extends AbstractOpenViduTestAppE2eTest {
 
 		log.info("openvidu-java-client PRO test");
 
+		// Create default Connection
 		Session session = OV.createSession();
 		Assert.assertFalse(session.fetch());
-		Connection connection = session.createConnection();
+		Connection connectionDefault = session.createConnection();
 		Assert.assertFalse(session.fetch());
-		Assert.assertEquals("Wrong role property", OpenViduRole.PUBLISHER, connection.getRole());
-		Assert.assertTrue("Wrong record property", connection.record());
-		session.updateConnection(connection.getConnectionId(),
-				new ConnectionProperties.Builder().role(OpenViduRole.SUBSCRIBER).record(false).build());
-		Assert.assertEquals("Wrong role property", OpenViduRole.SUBSCRIBER, connection.getRole());
+		Assert.assertEquals("Wrong role property", OpenViduRole.PUBLISHER, connectionDefault.getRole());
+		Assert.assertTrue("Wrong record property", connectionDefault.record());
+		Assert.assertEquals("Wrong data property", "", connectionDefault.getServerData());
+		// Update Connection
+		session.updateConnection(connectionDefault.getConnectionId(), new ConnectionProperties.Builder()
+				.role(OpenViduRole.SUBSCRIBER).record(false).data("WILL HAVE NO EFFECT").build());
+		Assert.assertEquals("Wrong role property", OpenViduRole.SUBSCRIBER, connectionDefault.getRole());
+		Assert.assertFalse("Wrong record property", connectionDefault.record());
+		Assert.assertEquals("Wrong data property", "", connectionDefault.getServerData());
+		Assert.assertFalse(session.fetch());
+
+		// Create custom properties Connection
+		long timestamp = System.currentTimeMillis();
+		Connection connection = session.createConnection(
+				new ConnectionProperties.Builder().record(false).role(OpenViduRole.MODERATOR).data("SERVER_SIDE_DATA")
+						.kurentoOptions(new KurentoOptions.Builder().videoMaxRecvBandwidth(555)
+								.videoMinRecvBandwidth(555).videoMaxSendBandwidth(555).videoMinSendBandwidth(555)
+								.allowedFilters(new String[] { "555" }).build())
+						.build());
+		Assert.assertEquals("Wrong status Connection property", "pending", connection.getStatus());
+		Assert.assertTrue("Wrong timestamp Connection property", connection.createdAt() > timestamp);
+		Assert.assertTrue("Wrong activeAt Connection property", connection.activeAt() == null);
+		Assert.assertTrue("Wrong location Connection property", connection.getLocation() == null);
+		Assert.assertTrue("Wrong platform Connection property", connection.getPlatform() == null);
+		Assert.assertTrue("Wrong clientData Connection property", connection.getClientData() == null);
+		Assert.assertTrue("Wrong publishers Connection property", connection.getPublishers().size() == 0);
+		Assert.assertTrue("Wrong subscribers Connection property", connection.getSubscribers().size() == 0);
+		Assert.assertTrue("Wrong token Connection property", connection.getToken().contains(session.getSessionId()));
+		Assert.assertEquals("Wrong type property", ConnectionType.WEBRTC, connection.getType());
+		Assert.assertEquals("Wrong data property", "SERVER_SIDE_DATA", connection.getServerData());
 		Assert.assertFalse("Wrong record property", connection.record());
-		Assert.assertFalse(session.fetch());
+		Assert.assertEquals("Wrong role property", OpenViduRole.MODERATOR, connection.getRole());
+		Assert.assertTrue("Wrong rtspUri property", connection.getRtspUri() == null);
+		Assert.assertTrue("Wrong adaptativeBitrate property", connection.adaptativeBitrate() == null);
+		Assert.assertTrue("Wrong onlyPlayWithSubscribers property", connection.onlyPlayWithSubscribers() == null);
+		Assert.assertTrue("Wrong networkCache property", connection.getNetworkCache() == null);
 	}
 
 	@Test

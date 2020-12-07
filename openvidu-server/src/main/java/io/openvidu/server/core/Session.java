@@ -256,6 +256,10 @@ public class Session implements SessionInterface {
 		connections.add("content", participants);
 		json.add("connections", connections);
 		json.addProperty("recording", this.recordingManager.sessionIsBeingRecorded(this.sessionId));
+		if (this.sessionProperties.forcedVideoCodec() != null) {
+			json.addProperty("forcedVideoCodec", this.sessionProperties.forcedVideoCodec().name());
+		}
+		json.addProperty("allowTranscoding", this.sessionProperties.isTranscodingAllowed());
 		return json;
 	}
 

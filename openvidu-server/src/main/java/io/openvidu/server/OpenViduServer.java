@@ -75,10 +75,13 @@ import io.openvidu.server.rpc.RpcNotificationService;
 import io.openvidu.server.utils.CommandExecutor;
 import io.openvidu.server.utils.GeoLocationByIp;
 import io.openvidu.server.utils.GeoLocationByIpDummy;
+import io.openvidu.server.utils.LocalCustomFileManager;
+import io.openvidu.server.utils.LocalDockerManager;
 import io.openvidu.server.utils.MediaNodeStatusManager;
 import io.openvidu.server.utils.MediaNodeStatusManagerDummy;
 import io.openvidu.server.utils.QuarantineKiller;
 import io.openvidu.server.utils.QuarantineKillerDummy;
+import io.openvidu.server.utils.SDPMunging;
 import io.openvidu.server.webhook.CDRLoggerWebhook;
 
 /**
@@ -100,7 +103,7 @@ public class OpenViduServer implements JsonRpcConfigurer {
 
 	@Bean
 	@ConditionalOnMissingBean
-	@DependsOn("openviduConfig")
+	@DependsOn({ "openviduConfig", "mediaNodeStatusManager" })
 	public KmsManager kmsManager(OpenviduConfig openviduConfig) {
 		if (openviduConfig.getKmsUris().isEmpty()) {
 			throw new IllegalArgumentException("'KMS_URIS' should contain at least one KMS url");
@@ -169,7 +172,7 @@ public class OpenViduServer implements JsonRpcConfigurer {
 	@ConditionalOnMissingBean
 	@DependsOn("openviduConfig")
 	public RecordingManager recordingManager() {
-		return new RecordingManager();
+		return new RecordingManager(new LocalDockerManager(false), new LocalCustomFileManager());
 	}
 
 	@Bean
@@ -214,6 +217,12 @@ public class OpenViduServer implements JsonRpcConfigurer {
 	@ConditionalOnMissingBean
 	public GeoLocationByIp geoLocationByIp() {
 		return new GeoLocationByIpDummy();
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	public SDPMunging sdpMunging() {
+		return new SDPMunging();
 	}
 
 	@Bean

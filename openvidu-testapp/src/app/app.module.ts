@@ -25,11 +25,13 @@ import { EventsDialogComponent } from './components/dialogs/events-dialog/events
 import { PublisherPropertiesDialogComponent } from './components/dialogs/publisher-properties-dialog/publisher-properties-dialog.component';
 import { ScenarioPropertiesDialogComponent } from './components/dialogs/scenario-properties-dialog/scenario-properties-dialog.component';
 import { FilterDialogComponent } from './components/dialogs/filter-dialog/filter-dialog.component';
+import { ShowCodecDialogComponent } from './components/dialogs/show-codec-dialog/show-codec-dialog.component';
 
 import { OpenviduRestService } from './services/openvidu-rest.service';
 import { OpenviduParamsService } from './services/openvidu-params.service';
 import { TestFeedService } from './services/test-feed.service';
 import { MuteSubscribersService } from './services/mute-subscribers.service';
+import {SessionInfoDialogComponent} from "./components/dialogs/session-info-dialog/session-info-dialog.component";
 
 @NgModule({
   declarations: [
@@ -48,6 +50,8 @@ import { MuteSubscribersService } from './services/mute-subscribers.service';
     PublisherPropertiesDialogComponent,
     ScenarioPropertiesDialogComponent,
     FilterDialogComponent,
+    ShowCodecDialogComponent,
+    SessionInfoDialogComponent,
     UsersTableComponent,
     TableVideoComponent
   ],
@@ -74,7 +78,9 @@ import { MuteSubscribersService } from './services/mute-subscribers.service';
     LocalRecordingDialogComponent,
     PublisherPropertiesDialogComponent,
     ScenarioPropertiesDialogComponent,
-    FilterDialogComponent
+    FilterDialogComponent,
+    ShowCodecDialogComponent,
+    SessionInfoDialogComponent
   ],
   bootstrap: [AppComponent]
 })

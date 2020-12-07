@@ -28,7 +28,8 @@ export class SessionApiDialogComponent {
 
     connectionProperties: ConnectionProperties = {
         record: true,
-        role: OpenViduRole.PUBLISHER
+        role: OpenViduRole.PUBLISHER,
+        data: ''
     };
 
     constructor(public dialogRef: MatDialogRef<SessionApiDialogComponent>,
@@ -57,7 +58,18 @@ export class SessionApiDialogComponent {
 
     startRecording() {
         console.log('Starting recording');
-        this.OV.startRecording(this.sessionId, this.recordingProperties)
+        const finalRecordingProperties = {
+            name: this.recordingProperties.name,
+            outputMode: this.recordingProperties.outputMode,
+            recordingLayout: this.recordingProperties.recordingLayout,
+            customLayout: this.recordingProperties.customLayout,
+            resolution: this.recordingProperties.resolution,
+            hasAudio: this.recordingProperties.hasAudio,
+            hasVideo: this.recordingProperties.hasVideo,
+            shmSize: this.recordingProperties.shmSize,
+            mediaNode: !this.recordingProperties.mediaNode.id ? undefined : this.recordingProperties.mediaNode
+        }
+        this.OV.startRecording(this.sessionId, finalRecordingProperties)
             .then(recording => {
                 this.response = 'Recording started [' + recording.id + ']';
             })
@@ -176,7 +188,7 @@ export class SessionApiDialogComponent {
         console.log('Creating connection');
         this.session.createConnection(this.connectionProperties)
             .then(connection => {
-                this.response = 'Connection created: ' + connection.connectionId;
+                this.response = 'Connection created: ' + JSON.stringify(connection);
             })
             .catch(error => {
                 this.response = 'Error [' + error.message + ']';
@@ -187,7 +199,11 @@ export class SessionApiDialogComponent {
         console.log('Updating connection');
         this.session.updateConnection(this.connectionId, this.connectionProperties)
             .then(modifiedConnection => {
-                this.response = 'Connection updated: ' + JSON.stringify({ role: modifiedConnection.connectionProperties.role, record: modifiedConnection.connectionProperties.record });
+                this.response = 'Connection updated: ' + JSON.stringify({
+                    role: modifiedConnection.connectionProperties.role,
+                    record: modifiedConnection.connectionProperties.record,
+                    data: modifiedConnection.connectionProperties.data
+                });
             })
             .catch(error => {
                 this.response = 'Error [' + error.message + ']';

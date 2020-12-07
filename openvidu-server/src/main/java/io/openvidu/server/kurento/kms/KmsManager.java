@@ -42,10 +42,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.google.gson.JsonObject;
 
+import io.openvidu.java.client.RecordingProperties;
 import io.openvidu.server.config.OpenviduConfig;
 import io.openvidu.server.core.IdentifierPrefixes;
+import io.openvidu.server.core.Session;
 import io.openvidu.server.kurento.core.KurentoSession;
 import io.openvidu.server.utils.MediaNodeStatusManager;
+import io.openvidu.server.utils.QuarantineKiller;
 import io.openvidu.server.utils.UpdatableTimerTask;
 
 public abstract class KmsManager {
@@ -88,8 +91,8 @@ public abstract class KmsManager {
 			return json;
 		}
 
-		public JsonObject toJsonExtended(boolean withSessions, boolean withExtraInfo) {
-			JsonObject json = this.kms.toJsonExtended(withSessions, withExtraInfo);
+		public JsonObject toJsonExtended(boolean withSessions, boolean withActiveRecordings, boolean withExtraInfo) {
+			JsonObject json = this.kms.toJsonExtended(withSessions, withActiveRecordings, withExtraInfo);
 			json.addProperty("load", this.load);
 			return json;
 		}
@@ -100,6 +103,9 @@ public abstract class KmsManager {
 
 	@Autowired
 	protected LoadManager loadManager;
+
+	@Autowired
+	protected QuarantineKiller quarantineKiller;
 
 	@Autowired
 	protected MediaNodeStatusManager mediaNodeStatusManager;
@@ -139,11 +145,6 @@ public abstract class KmsManager {
 
 	public Kms getKms(String kmsId) {
 		return this.kmss.get(kmsId);
-	}
-
-	public KmsLoad getKmsLoad(String kmsId) {
-		Kms kms = this.kmss.get(kmsId);
-		return new KmsLoad(kms, kms.getLoad());
 	}
 
 	public Collection<Kms> getKmss() {
@@ -295,7 +296,7 @@ public abstract class KmsManager {
 							kmsReconnectionLocks.get(kms.getId()).unlock();
 						}
 					}
-				}, () -> new Long(dynamicReconnectLoopSeconds(ITERATION.getAndIncrement()) * 1000));
+				}, () -> Long.valueOf(dynamicReconnectLoopSeconds(ITERATION.getAndIncrement()) * 1000));
 
 				kurentoReconnectTimer.updateTimer();
 			}
@@ -353,9 +354,11 @@ public abstract class KmsManager {
 	public abstract List<Kms> initializeKurentoClients(List<KmsProperties> kmsProperties, boolean disconnectUponFailure)
 			throws Exception;
 
-	public LoadManager getLoadManager() {
-		return this.loadManager;
-	}
+	public abstract void incrementActiveRecordings(RecordingProperties recordingProperties, String recordingId,
+			Session session);
+
+	public abstract void decrementActiveRecordings(RecordingProperties recordingProperties, String recordingId,
+			Session session);
 
 	@PostConstruct
 	protected abstract void postConstructInitKurentoClients();

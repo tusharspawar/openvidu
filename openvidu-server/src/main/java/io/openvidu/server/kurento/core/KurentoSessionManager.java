@@ -56,6 +56,7 @@ import io.openvidu.java.client.RecordingLayout;
 import io.openvidu.java.client.RecordingMode;
 import io.openvidu.java.client.RecordingProperties;
 import io.openvidu.java.client.SessionProperties;
+import io.openvidu.java.client.VideoCodec;
 import io.openvidu.server.core.EndReason;
 import io.openvidu.server.core.FinalUser;
 import io.openvidu.server.core.IdentifierPrefixes;
@@ -72,6 +73,7 @@ import io.openvidu.server.kurento.kms.KmsManager;
 import io.openvidu.server.rpc.RpcHandler;
 import io.openvidu.server.utils.GeoLocation;
 import io.openvidu.server.utils.JsonUtils;
+import io.openvidu.server.utils.SDPMunging;
 
 public class KurentoSessionManager extends SessionManager {
 
@@ -85,6 +87,9 @@ public class KurentoSessionManager extends SessionManager {
 
 	@Autowired
 	protected KurentoParticipantEndpointConfig kurentoEndpointConfig;
+
+	@Autowired
+	private SDPMunging sdpMunging;
 
 	@Override
 	/* Protected by Session.closingLock.readLock */
@@ -358,15 +363,21 @@ public class KurentoSessionManager extends SessionManager {
 
 		KurentoMediaOptions kurentoOptions = (KurentoMediaOptions) mediaOptions;
 		KurentoParticipant kParticipant = (KurentoParticipant) participant;
+		KurentoSession kSession = kParticipant.getSession();
+		SdpType sdpType = kurentoOptions.isOffer ? SdpType.OFFER : SdpType.ANSWER;
+		boolean isTranscodingAllowed = kSession.getSessionProperties().isTranscodingAllowed();
+		VideoCodec forcedVideoCodec = kSession.getSessionProperties().forcedVideoCodec();
 
+		// Modify sdp if forced codec is defined
+		if (forcedVideoCodec != VideoCodec.NONE && !participant.isIpcam()) {
+			kurentoOptions.sdpOffer = sdpMunging.forceCodec(participant, kurentoOptions.sdpOffer,
+					kurentoOptions.isOffer, kSession, true, false, isTranscodingAllowed, forcedVideoCodec);
+		}
 		log.debug(
 				"Request [PUBLISH_MEDIA] isOffer={} sdp={} "
 						+ "loopbackAltSrc={} lpbkConnType={} doLoopback={} rtspUri={} ({})",
 				kurentoOptions.isOffer, kurentoOptions.sdpOffer, kurentoOptions.doLoopback, kurentoOptions.rtspUri,
 				participant.getParticipantPublicId());
-
-		SdpType sdpType = kurentoOptions.isOffer ? SdpType.OFFER : SdpType.ANSWER;
-		KurentoSession kSession = kParticipant.getSession();
 
 		kParticipant.createPublishingEndpoint(mediaOptions, null);
 
@@ -421,7 +432,10 @@ public class KurentoSessionManager extends SessionManager {
 								recordingManager.startRecording(kSession, new RecordingProperties.Builder().name("")
 										.outputMode(kSession.getSessionProperties().defaultOutputMode())
 										.recordingLayout(kSession.getSessionProperties().defaultRecordingLayout())
-										.customLayout(kSession.getSessionProperties().defaultCustomLayout()).build());
+										.customLayout(kSession.getSessionProperties().defaultCustomLayout())
+										.resolution(/*
+													 * kSession.getSessionProperties().defaultRecordingResolution()
+													 */"1920x1080").mediaNode(kSession.getMediaNodeId()).build());
 							}).start();
 						} else if (recordingManager.sessionIsBeingRecorded(kSession.getSessionId())) {
 							// Abort automatic recording stop thread for any recorded session in which a
@@ -462,6 +476,7 @@ public class KurentoSessionManager extends SessionManager {
 		participants = kParticipant.getSession().getParticipants();
 
 		if (sdpAnswer != null) {
+			log.debug("SDP Answer for publishing PARTICIPANT {}: {}", participant.getParticipantPublicId(), sdpAnswer);
 			sessionEventsHandler.onPublishMedia(participant, participant.getPublisherStreamId(),
 					kParticipant.getPublisher().createdAt(), kSession.getSessionId(), mediaOptions, sdpAnswer,
 					participants, transactionId, null);
@@ -510,6 +525,14 @@ public class KurentoSessionManager extends SessionManager {
 			KurentoParticipant kParticipant = (KurentoParticipant) participant;
 			session = ((KurentoParticipant) participant).getSession();
 			Participant senderParticipant = session.getParticipantByPublicId(senderName);
+			boolean isTranscodingAllowed = session.getSessionProperties().isTranscodingAllowed();
+			VideoCodec forcedVideoCodec = session.getSessionProperties().forcedVideoCodec();
+
+			// Modify sdp if forced codec is defined
+			if (forcedVideoCodec != VideoCodec.NONE && !participant.isIpcam()) {
+				sdpOffer = sdpMunging.forceCodec(participant, sdpOffer, true, session, false, false,
+						isTranscodingAllowed, forcedVideoCodec);
+			}
 
 			if (senderParticipant == null) {
 				log.warn(
@@ -539,6 +562,7 @@ public class KurentoSessionManager extends SessionManager {
 			sessionEventsHandler.onSubscribe(participant, session, null, transactionId, e);
 		}
 		if (sdpAnswer != null) {
+			log.debug("SDP Answer for subscribing PARTICIPANT {}: {}", participant.getParticipantPublicId(), sdpAnswer);
 			sessionEventsHandler.onSubscribe(participant, session, sdpAnswer, transactionId, null);
 		}
 	}
@@ -1049,8 +1073,17 @@ public class KurentoSessionManager extends SessionManager {
 	public void reconnectStream(Participant participant, String streamId, String sdpOffer, Integer transactionId) {
 		KurentoParticipant kParticipant = (KurentoParticipant) participant;
 		KurentoSession kSession = kParticipant.getSession();
+		boolean isPublisher = streamId.equals(participant.getPublisherStreamId());
+		boolean isTranscodingAllowed = kSession.getSessionProperties().isTranscodingAllowed();
+		VideoCodec forcedVideoCodec = kSession.getSessionProperties().forcedVideoCodec();
 
-		if (streamId.equals(participant.getPublisherStreamId())) {
+		// Modify sdp if forced codec is defined
+		if (forcedVideoCodec != VideoCodec.NONE && !participant.isIpcam()) {
+			sdpOffer = sdpMunging.forceCodec(participant, sdpOffer, true, kSession, isPublisher, true,
+					isTranscodingAllowed, forcedVideoCodec);
+		}
+
+		if (isPublisher) {
 
 			// Reconnect publisher
 			final KurentoMediaOptions kurentoOptions = (KurentoMediaOptions) kParticipant.getPublisher()
@@ -1069,7 +1102,8 @@ public class KurentoSessionManager extends SessionManager {
 			kParticipant.createPublishingEndpoint(kurentoOptions, streamId);
 			SdpType sdpType = kurentoOptions.isOffer ? SdpType.OFFER : SdpType.ANSWER;
 			String sdpAnswer = kParticipant.publishToRoom(sdpType, sdpOffer, kurentoOptions.doLoopback, true);
-
+			log.debug("SDP Answer for publishing reconnection PARTICIPANT {}: {}", participant.getParticipantPublicId(),
+					sdpAnswer);
 			sessionEventsHandler.onPublishMedia(participant, participant.getPublisherStreamId(),
 					kParticipant.getPublisher().createdAt(), kSession.getSessionId(), kurentoOptions, sdpAnswer,
 					new HashSet<Participant>(), transactionId, null);
@@ -1086,6 +1120,9 @@ public class KurentoSessionManager extends SessionManager {
 					throw new OpenViduException(Code.MEDIA_SDP_ERROR_CODE,
 							"Unable to generate SDP answer when reconnecting subscriber to '" + streamId + "'");
 				}
+
+				log.debug("SDP Answer for subscribing reconnection PARTICIPANT {}: {}",
+						participant.getParticipantPublicId(), sdpAnswer);
 				sessionEventsHandler.onSubscribe(participant, kSession, sdpAnswer, transactionId, null);
 			} else {
 				throw new OpenViduException(Code.USER_NOT_STREAMING_ERROR_CODE,

@@ -53,7 +53,7 @@ const logger: OpenViduLogger = OpenViduLogger.getInstance();
 /**
  * @hidden
  */
-const platform: PlatformUtils = PlatformUtils.getInstance();
+let platform: PlatformUtils;
 
 /**
  * Represents a video call. It can also be seen as a videoconference room where multiple users can connect.
@@ -143,12 +143,21 @@ export class Session extends EventDispatcher {
      * @hidden
      */
     stopSpeakingEventsEnabledOnce = false;
+    /**
+     * @hidden
+     */
+    private videoDataInterval: NodeJS.Timeout;
+    /**
+     * @hidden
+     */
+    private videoDataTimeout: NodeJS.Timeout;
 
     /**
      * @hidden
      */
     constructor(openvidu: OpenVidu) {
         super();
+        platform = PlatformUtils.getInstance();
         this.openvidu = openvidu;
     }
 
@@ -1121,6 +1130,7 @@ export class Session extends EventDispatcher {
 
         forced = !!forced;
         logger.info('Leaving Session (forced=' + forced + ')');
+        this.stopVideoDataIntervals();
 
         if (!!this.connection) {
             if (!this.connection.disposed && !forced) {
@@ -1192,23 +1202,24 @@ export class Session extends EventDispatcher {
             }
             if (doInterval) {
                 let loops = 1;
-                let timer = setTimeout(async function myTimer() {
-                    await obtainAndSendVideo();
+                this.videoDataInterval = setInterval(() => {
                     if (loops < maxLoops) {
                         loops++;
-                        timer = setTimeout(myTimer, intervalSeconds * 1000);
+                        obtainAndSendVideo();
+                    }else {
+                        clearInterval(this.videoDataInterval);
                     }
                 }, intervalSeconds * 1000);
             } else {
-                setTimeout(obtainAndSendVideo, intervalSeconds * 1000);
+                this.videoDataTimeout = setTimeout(obtainAndSendVideo, intervalSeconds * 1000);
             }
-        } else if (platform.isFirefoxBrowser() || platform.isFirefoxMobileBrowser() || platform.isIonicIos()) {
+        } else if (platform.isFirefoxBrowser() || platform.isFirefoxMobileBrowser() || platform.isIonicIos() || platform.isReactNative()) {
             // Basic version for Firefox and Ionic iOS. They do not support stats
             this.openvidu.sendRequest('videoData', {
-                height: streamManager.stream.videoDimensions.height,
-                width: streamManager.stream.videoDimensions.width,
-                videoActive: streamManager.stream.videoActive,
-                audioActive: streamManager.stream.audioActive
+                height: streamManager.stream.videoDimensions?.height || 0,
+                width: streamManager.stream.videoDimensions?.width || 0,
+                videoActive: streamManager.stream.videoActive != null ? streamManager.stream.videoActive : false,
+                audioActive: streamManager.stream.audioActive != null ? streamManager.stream.audioActive : false
             }, (error, response) => {
                 if (error) {
                     logger.error("Error sending 'videoData' event", error);
@@ -1286,6 +1297,11 @@ export class Session extends EventDispatcher {
                 this.connection.stream.ee.emitEvent('local-stream-destroyed', [reason]);
             }
         }
+    }
+
+    private stopVideoDataIntervals(): void {
+        clearInterval(this.videoDataInterval);
+        clearTimeout(this.videoDataTimeout);
     }
 
     private stringClientMetadata(metadata: any): string {

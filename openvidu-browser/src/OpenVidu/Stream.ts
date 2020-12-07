@@ -45,7 +45,7 @@ const logger: OpenViduLogger = OpenViduLogger.getInstance();
 /**
  * @hidden
  */
-const platform: PlatformUtils = PlatformUtils.getInstance();
+let platform: PlatformUtils;
 
 /**
  * Represents each one of the media streams available in OpenVidu Server for certain session.
@@ -215,7 +215,7 @@ export class Stream extends EventDispatcher {
     constructor(session: Session, options: InboundStreamOptions | OutboundStreamOptions | {}) {
 
         super();
-
+        platform = PlatformUtils.getInstance();
         this.session = session;
 
         if (options.hasOwnProperty('id')) {
@@ -779,7 +779,7 @@ export class Stream extends EventDispatcher {
         if (!this.getWebRtcPeer() || !this.getRTCPeerConnection()) {
             return false;
         }
-        if (this.isLocal && !!this.session.openvidu.advancedConfiguration.forceMediaReconnectionAfterNetworkDrop) {
+        if (this.isLocal() && !!this.session.openvidu.advancedConfiguration.forceMediaReconnectionAfterNetworkDrop) {
             logger.warn('OpenVidu Browser advanced configuration option "forceMediaReconnectionAfterNetworkDrop" is enabled. Publisher stream ' + this.streamId + 'will force a reconnection');
             return true;
         }

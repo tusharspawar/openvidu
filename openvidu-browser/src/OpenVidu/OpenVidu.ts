@@ -57,7 +57,7 @@ const logger: OpenViduLogger = OpenViduLogger.getInstance();
 /**
  * @hidden
  */
-const platform: PlatformUtils = PlatformUtils.getInstance();
+let platform: PlatformUtils;
 
 /**
  * Entrypoint of OpenVidu Browser library.
@@ -117,6 +117,7 @@ export class OpenVidu {
   ee = new EventEmitter()
 
   constructor() {
+    platform = PlatformUtils.getInstance();
     this.libraryVersion = packageJson.version;
     logger.info("'OpenVidu' initialized");
     logger.info("openvidu-browser version: " + this.libraryVersion);
@@ -346,8 +347,8 @@ export class OpenVidu {
     // Safari (OSX and iOS), Edge Chromium (>= 80), Ionic (Android and iOS), Samsung Internet Browser (Android)
     if (platform.isChromeBrowser() || platform.isChromeMobileBrowser() ||
       platform.isFirefoxBrowser() || platform.isFirefoxMobileBrowser() || platform.isOperaBrowser() ||
-      platform.isOperaMobileBrowser() || platform.isSafariBrowser() || platform.isEdgeBrowser() ||
-      platform.isAndroidBrowser() || platform.isElectron() || platform.isSamsungBrowser()
+      platform.isOperaMobileBrowser() || platform.isEdgeBrowser() || platform.isEdgeMobileBrowser() ||
+      platform.isSafariBrowser() || platform.isAndroidBrowser() || platform.isElectron() || platform.isSamsungBrowser()
     ) {
       return 1;
     }
